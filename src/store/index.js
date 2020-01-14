@@ -38,7 +38,7 @@ export default new Vuex.Store({
     },
     getters: {
         acceptedTokens: (state) => {
-            return (state.store && state.store.acceptedTokens) || []
+            return (state.store && state.store.accepted_currencies) || []
         },
         paymentOrder: (state) => {
             let checkout = state.checkout
@@ -128,7 +128,12 @@ export default new Vuex.Store({
                 external_identifier: state.identifier
             })
             commit('setCheckout', checkoutData)
-        }
+        },
+        async pollExchangeRates({dispatch}) {
+            this.getters.acceptedTokens.forEach(async function(token){
+                await dispatch('getExchangeRate', token)
+            });
+        }        
     },
     modules: {
     }

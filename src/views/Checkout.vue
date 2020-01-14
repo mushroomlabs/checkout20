@@ -18,6 +18,11 @@ export default {
     components: {
         TokenSelector, PaymentTracker, Spinner
     },
+    data() {
+        return {
+            exchangeRatePolling: null
+        }
+    },
     computed: {
         selectedToken() {
             return this.$store.state.selectedToken
@@ -28,6 +33,9 @@ export default {
     },
     async mounted() {
         this.$store.dispatch('getStore')
-    }    
+        this.exchangeRatePolling = setInterval(() => {
+            this.$store.dispatch('pollExchangeRates')
+        }, 15000)
+    }
 }
 </script>
