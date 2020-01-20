@@ -1,7 +1,7 @@
 <template>
   <div v-if='exchangeRate' class='token-exchange-rate'>
     <div class='rate'>Current Price: {{ exchangeRateFormatted }}</div>
-    <div class='due'>Total to Pay: {{ tokenAmountFormatted }}</div>
+    <div class='due'>Total to Pay: {{ tokenAmountDueFormatted }}</div>
   </div>
 </template>
 
@@ -19,16 +19,14 @@ export default {
         exchangeRateFormatted: function() {
             let formatter = new Intl.NumberFormat(
                 [], {style: 'currency', currency: this.currency, minimumFractionDigits: 3}
-            );
-            return `${formatter.format(this.exchangeRate)} / ${this.token.code}`;
+            )
+            return `${formatter.format(this.exchangeRate)} / ${this.token.code}`
         },
         tokenAmount: function() {
-            return parseFloat(this.amountDue) / parseFloat(this.exchangeRate);
+            return parseFloat(this.amountDue) / parseFloat(this.exchangeRate)
         },
-        tokenAmountFormatted: function() {
-            let formatter = new Intl.NumberFormat([], {maximumSignificantDigits: 6});
-            let formatted_amount = formatter.format(this.tokenAmount);
-            return `${formatted_amount} ${this.token.code}`;
+        tokenAmountDueFormatted: function() {
+            return this.$store.getters.tokenAmountFormatted(this.token.code)
         },
         amountDue() {
             return this.$store.state.amountDue

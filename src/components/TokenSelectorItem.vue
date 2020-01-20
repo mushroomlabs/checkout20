@@ -3,7 +3,7 @@
   <span v-if='token' class='token-name'>{{ token.name }}</span>
   <img
     v-if='token'
-    :src='token.logo'
+    :src='token.logo || "https://assets.coingecko.com/coins/images/279/large/ethereum.png"'
     :alt='token.name'
   />
   <TokenExchangeRate
@@ -17,8 +17,8 @@
 
 
 <script>
-  import TokenExchangeRate from './TokenExchangeRate.vue';
-  import Spinner from './Spinner.vue';
+  import TokenExchangeRate from './TokenExchangeRate.vue'
+  import Spinner from './Spinner.vue'
 
 export default {
     name: 'TokenSelectorItem',
@@ -30,10 +30,10 @@ export default {
     },
     computed: {
         spinnerMessage: function() {
-            return `Fetching ${this.tokenCode}/${this.currency} exchange rate`;
+            return `Fetching ${this.tokenCode}/${this.currency} exchange rate`
         },
         tokenUrl: function() {
-            return `${this.apiRootUrl}/api/tokens/token/${this.tokenCode}`;
+            return `${this.apiRootUrl}/api/tokens/token/${this.tokenCode}`
         },
         apiRootUrl() {
             return this.$store.state.apiRootUrl
@@ -50,12 +50,13 @@ export default {
     },
     methods: {
         selectToken: function() {
-            this.$store.commit('selectToken', this.tokenCode);
+            this.$store.commit('selectToken', this.tokenCode)
+            this.$store.dispatch('makeCheckout')
         }
     },
     async mounted() {
-        this.$store.dispatch('getToken', this.tokenCode);
-        this.$store.dispatch('getExchangeRate', this.tokenCode);
+        this.$store.dispatch('getToken', this.tokenCode)
+        this.$store.dispatch('getExchangeRate', this.tokenCode)
     }
 }
 </script>

@@ -28,11 +28,13 @@ export default new Vuex.Store({
         paymentReceivedHandler: null,
         paymentConfirmedHandler: null,
         paymentCanceledHandler: null,
+        contentCopiedHandler: null,
 
         // values that do change during runtime
         store: null,
         selectedToken: null,
         checkout: null,
+        checkoutWebsocket: null,
         tokens: {},
         exchangeRates: {}
     },
@@ -41,19 +43,36 @@ export default new Vuex.Store({
             return (state.store && state.store.accepted_currencies) || []
         },
         paymentOrder: (state) => {
+            let now = new Date()
             let checkout = state.checkout
+            let payment_method = checkout && checkout.payment_method
+            let isFinalized = !checkout || checkout.status != "requested"
+            let expirationTime = payment_method && new Date(payment_method.expiration_time)
+
+            let isExpired = isFinalized || (expirationTime && expirationTime < now)
+
             return checkout && {
                 token: checkout.currency,
-                amount: checkout.amount,
+                tokenAmount: checkout.amount,
                 identifier: checkout.external_identifier,
-                status: checkout.status
+                status: checkout.status,
+                createdTime: new Date(checkout.created),
+                expirationTime: expirationTime,
+                isExpired: isExpired,
+                isFinalized: isFinalized
             }
+        },
+        paymentOrderExpirationTime: (_, getters) => {
+            return getters.paymentOrder.expirationTime
+        },
+        paymentOrderStatus: (_, getters) => {
+            return getters.paymentOrder.status
         },
         paymentRouting: (state) => {
             let checkout = state.checkout
             let payment_method = checkout && checkout.payment_method
             return payment_method && {
-                expiration_time: new Date(payment_method.expiration_time),
+                expirationTime: new Date(payment_method.expiration_time),
                 blockchain: payment_method.blockchain,
                 identifier: payment_method.identifier,
                 raiden: payment_method.raiden
@@ -63,26 +82,52 @@ export default new Vuex.Store({
             let rateData = state.exchangeRates[tokenCode]
             return rateData && rateData.rate
         },
-        getTokenAmountDue: (state) => (tokenCode) => {
-            let exchangeRate = this.getters.getExchangeRate(tokenCode)
+        getTokenAmountDue: (state, getters) => (tokenCode) => {
+            let exchangeRate = getters.getExchangeRate(tokenCode)
             return exchangeRate && (parseFloat(state.amountDue) / parseFloat(exchangeRate))
         },
         getToken: (state) => (tokenCode) => {
             return state.tokens[tokenCode]
+        },
+        amountFormatted: (state) => {
+            let formatter = new Intl.NumberFormat(
+                [], {style: 'currency', currency: state.pricingCurrency}
+            );
+            return formatter.format(parseFloat(state.amountDue))
+        },
+        tokenAmountFormatted: (state, getters) => (tokenCode) => {
+            let tokenAmountDue = getters.getTokenAmountDue(tokenCode)
+            let formatter = new Intl.NumberFormat([], {maximumSignificantDigits: 6})
+            let formattedAmount = formatter.format(tokenAmountDue)
+            return `${formattedAmount} ${tokenCode}`
+        },
+        tokenAmountDueFormatted: (state, getters) => (tokenCode) => {
+            let tokenAmountDue = getters.getTokenAmountDue(tokenCode)
+            let formatter = new Intl.NumberFormat([], {maximumSignificantDigits: 18})
+            let formattedAmount = formatter.format(tokenAmountDue)
+            return `${formattedAmount} ${tokenCode}`
+        },
+        websocketRootUrl: (state) => {
+            let url = new URL(state.apiRootUrl)
+            let ws_protocol = url.protocol == 'http:' ? 'ws:': 'wss:'
+            url.protocol = ws_protocol
+            return url.origin
         }
     },
     mutations: {
         setup(state, setupData) {
             let timestamp = new Date().toISOString()
+
             state.apiRootUrl = setupData.apiRootUrl
             state.storeId = setupData.storeId
             state.pricingCurrency = String(setupData.currency).toUpperCase(),
             state.identifier = setupData.identifier || new Hashes.MD5().hex(timestamp)
-            state.amountDue = setupData.amount,
-            state.paymentSentHandler = setupData.onPaymentSent,
-            state.paymentReceivedHandler = setupData.onPaymentReceived,
-            state.paymentConfirmedHandler = setupData.onPaymentConfirmed,
+            state.amountDue = setupData.amount
+            state.paymentSentHandler = setupData.onPaymentSent
+            state.paymentReceivedHandler = setupData.onPaymentReceived
+            state.paymentConfirmedHandler = setupData.onPaymentConfirmed
             state.paymentCanceledHandler = setupData.onPaymentCanceled
+            state.contentCopiedHandler = setupData.onCopyToClipboard
         },
         selectToken(state, token) {
             state.selectedToken = token
@@ -98,9 +143,20 @@ export default new Vuex.Store({
         },
         setCheckout(state, checkoutData) {
             state.checkout = checkoutData
+        },
+        setCheckoutWebSocket(state, checkoutWebSocket) {
+            state.checkoutWebSocket = checkoutWebSocket
         }
     },
     actions: {
+        async copyToClipboard({state}, containerElement) {
+            let content = containerElement.getAttribute('data-clipboard') || containerElement.textContent
+            navigator.clipboard.writeText(content.trim());
+
+            if (state.contentCopiedHandler) {
+                state.contentCopiedHander(containerElement)
+            }
+        },
         async getStore({commit, state}) {
             let storeUrl = `${state.apiRootUrl}/api/stores/${state.storeId}`
             let response = await fetch(storeUrl)
@@ -116,24 +172,76 @@ export default new Vuex.Store({
         async getExchangeRate({commit, state}, token) {
             let url = `${state.apiRootUrl}/api/tokens/rates/${token}/${state.pricingCurrency}`
             let response = await fetch(url);
-            let rate = await response.json() 
+            let rate = await response.json()
             commit('setExchangeRate', rate)
         },
-        async makeCheckout({commit, state}) {
+        async makeCheckout({commit, state, getters, dispatch}) {
+            let tokenAmount = getters.getTokenAmountDue(state.selectedToken)
             let checkoutUrl = `${state.apiRootUrl}/api/checkout`
             let checkoutData = await postJSON(checkoutUrl, {
-                store: state.store,
-                amount: this.getters.getTokenAmountDue(state.selectedToken),
+                store: state.storeId,
+                amount: tokenAmount,
                 currency: state.selectedToken,
                 external_identifier: state.identifier
             })
+
+            let checkoutWebSocket = new WebSocket(
+                `${getters.websocketRootUrl}/checkout/${checkoutData.id}`
+            )
+
+            checkoutWebSocket.onmessage = function(evt) {
+                let message = JSON.parse(evt.data)
+                dispatch('handleCheckoutMessage', message)
+            }
             commit('setCheckout', checkoutData)
+            commit('setCheckoutWebSocket', checkoutWebSocket)
         },
-        async pollExchangeRates({dispatch}) {
-            this.getters.acceptedTokens.forEach(async function(token){
+        async updateCheckout({commit, state}) {
+            let checkoutId = state.checkout && state.checkout.id
+
+            if (checkoutId) {
+                let checkoutUrl = `${state.apiRootUrl}/api/checkout/${checkoutId}`
+                let response = await fetch(checkoutUrl)
+                let checkoutData = await response.json()
+                commit('setCheckout', checkoutData)
+            }
+        },
+        async pollExchangeRates({dispatch, getters}) {
+            getters.acceptedTokens.forEach(async function(token){
                 await dispatch('getExchangeRate', token)
             });
-        }        
+        },
+        handleCheckoutMessage({dispatch}, message) {
+            let {voucher, event} = message
+
+            dispatch('updateCheckout')
+            switch(event) {
+            case 'payment.confirmed':
+                dispatch('handlePaymentConfirmed', voucher)
+                break
+            case 'payment.received':
+                dispatch('handlePaymentReceived', voucher)
+                break
+            }
+        },
+        handlePaymentConfirmed({state}, voucher){
+            let handler = state.paymentConfirmedHandler
+            if (handler) {
+                handler(voucher)
+            }
+        },
+        handlePaymentReceived({state}, voucher){
+            let handler = state.paymentReceivedHandler
+            if (handler) {
+                handler(voucher)
+            }
+        },
+        handlePaymentCanceled({state}, voucher){
+            let handler = state.paymentCanceledHandler
+            if (handler) {
+                handler(voucher)
+            }
+        }
     },
     modules: {
     }
