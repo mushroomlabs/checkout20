@@ -35,6 +35,21 @@ export default {
         list-style-type: none;
     }
 
+    [name=time-remaining-progress-bar] {
+        &.ok div.vue-simple-progress-bar {
+            background-color: green !important;
+        }
+
+        &.warning div.vue-simple-progress-bar {
+            background-color: yellow !important;
+        }
+
+        &.critical div.vue-simple-progress-bar {
+            background-color: red !important;
+        }
+    }
+
+
     ul.token-selector {
         width: 100%;
         display: grid;
@@ -121,9 +136,14 @@ export default {
             width: 100%;
             padding-inline-start: 0;
 
+
             li {
                 border-top: 1px solid #787878;
                 padding: 2vh 0;
+
+                &:first-child {
+                    border-top: none
+                }
             }
 
             .transfer {
@@ -142,6 +162,7 @@ export default {
 
             div.payment-instructions {
                 color: #505050;
+                padding-top: 1em
             }
 
             li.payment-method.ethereum {
@@ -182,6 +203,14 @@ export default {
                 &::after {
                     content: ": ";
                 }
+            }
+        }
+
+        div.payment-order-timer {
+            padding: 0 1em;
+            span.time-remaining-display {
+                display: block;
+                text-align: right;
             }
         }
     }

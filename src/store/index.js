@@ -43,30 +43,47 @@ export default new Vuex.Store({
             return (state.store && state.store.accepted_currencies) || []
         },
         paymentOrder: (state) => {
-            let now = new Date()
             let checkout = state.checkout
             let payment_method = checkout && checkout.payment_method
-            let isFinalized = !checkout || checkout.status != "requested"
-            let expirationTime = payment_method && new Date(payment_method.expiration_time)
-
-            let isExpired = isFinalized || (expirationTime && expirationTime < now)
 
             return checkout && {
                 token: checkout.currency,
                 tokenAmount: checkout.amount,
                 identifier: checkout.external_identifier,
                 status: checkout.status,
-                createdTime: new Date(checkout.created),
-                expirationTime: expirationTime,
-                isExpired: isExpired,
-                isFinalized: isFinalized
+                createdTime: checkout && new Date(checkout.created),
+                expirationTime: payment_method && new Date(payment_method.expiration_time),
+                isFinalized: !checkout || checkout.status != 'requested',
             }
         },
-        paymentOrderExpirationTime: (_, getters) => {
-            return getters.paymentOrder.expirationTime
-        },
-        paymentOrderStatus: (_, getters) => {
-            return getters.paymentOrder.status
+        paymentOrderTimerStatus: (state) => (date) => {
+            if (!date) {
+                return
+            }
+
+            let checkout = state.checkout
+            let payment_method = checkout && checkout.payment_method
+
+            let expirationTime = payment_method && new Date(payment_method.expiration_time)
+            let createdTime = checkout && new Date(checkout.created)
+
+            let totalTime = expirationTime && (expirationTime - createdTime)
+
+            let timeElapsed = (date - createdTime) || 0
+            let timeRemaining = Math.max(expirationTime - date || 0, 0)
+
+            let isExpired = expirationTime && timeRemaining <= 0
+
+            let timeRemainingPercentage = expirationTime ? Math.floor((100 * timeRemaining) / totalTime) : 0
+            let timeElapsedPercentage = 1 - timeRemainingPercentage
+
+            return checkout && {
+                isExpired: isExpired,
+                timeElapsed: timeElapsed,
+                timeRemaining: timeRemaining,
+                timeRemainingPercentage: timeRemainingPercentage,
+                timeElapsedPercentage: timeElapsedPercentage
+            }
         },
         paymentRouting: (state) => {
             let checkout = state.checkout
