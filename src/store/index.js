@@ -2,6 +2,8 @@ import Hashes from 'jshashes'
 import Vue from 'vue'
 import Vuex from 'vuex'
 
+import Erc20 from './erc20'
+
 Vue.use(Vuex)
 
 async function postJSON(url, payload) {
@@ -103,6 +105,10 @@ export default new Vuex.Store({
             let exchangeRate = getters.getExchangeRate(tokenCode)
             return exchangeRate && (parseFloat(state.amountDue) / parseFloat(exchangeRate))
         },
+        getTokenAmountWei: (state, getters) => (amount, tokenCode) => {
+            let token = getters.getToken(tokenCode)
+            return Math.floor(amount * (10 ** token.decimals))
+        },
         getToken: (state) => (tokenCode) => {
             return state.tokens[tokenCode]
         },
@@ -178,6 +184,9 @@ export default new Vuex.Store({
                 state.contentCopiedHander(containerElement)
             }
         },
+        async displayError(_, message) {
+            alert(message)
+        },
         async getStore({commit, state}) {
             let storeUrl = `${state.apiRootUrl}/api/stores/${state.storeId}`
             let response = await fetch(storeUrl)
@@ -236,6 +245,73 @@ export default new Vuex.Store({
                 let checkoutData = await response.json()
                 commit('setCheckout', checkoutData)
             }
+        },
+        async makeWeb3Transfer({getters, state, dispatch}) {
+            let paymentMethod = getters.paymentRouting
+
+            if (!paymentMethod || !paymentMethod.blockchain){
+                dispatch('displayErrorMessage', 'Transfer via blockchain not possible at the moment')
+                return
+            }
+
+            if (!window.ethereum || !window.web3) {
+                dispatch('displayErrorMessage', 'No Web3 Browser available')
+                return
+            }
+
+            const w3 = new window.Web3(window.ethereum ? window.ethereum : window.web3.currentProvider)
+
+            if (window.ethereum) {
+                try {
+                    await window.ethereum.enable();
+                } catch (error) {
+                    dispatch('displayErrorMessage', 'Failed to connect to Web3 Wallet')
+                    return
+                }
+            }
+
+            let token = getters.getToken(state.selectedToken)
+            let current_network_id = w3.version.network
+
+            if (current_network_id != token.network_id) {
+                let message = `Web3 Browser connected to network ${current_network_id}, please change to ${token.network_id}.`
+                dispatch('displayErrorMessage', message);
+                return
+            }
+
+            let tokenAmountDue = getters.getTokenAmountDue(state.selectedToken)
+            let tokenWeiDue = getters.getTokenAmountWei(tokenAmountDue, state.selectedToken)
+            let sender = (window.ethereum && window.ethereum.selectedAddress) || w3.eth.defaultAccount
+            let recipient = paymentMethod.blockchain
+
+            let transactionData = {
+                from: sender
+            }
+
+            if (!token.address) {
+                // ETH transfer
+                transactionData.to = recipient
+                transactionData.value = tokenWeiDue
+            }
+            else {
+                transactionData.to = token.address
+                transactionData.data = Erc20.makeTransferData(w3, tokenWeiDue, token.address, recipient)
+            }
+
+            w3.eth.sendTransaction(transactionData, function(error, tx) {
+                if (tx) {
+                    dispatch('notifyTransactionSent', tx)
+                }
+                if (error) {
+                    dispatch('notifyTransactionError', error)
+                }
+            })
+        },
+        async notifyTransactionSent(_, transactionHash) {
+            console.log(transactionHash)
+        },
+        async notifyTransactionError(_, transactionError) {
+            console.error(transactionError)
         },
         async pollExchangeRates({dispatch, getters}) {
             getters.acceptedTokens.forEach(async function(token){

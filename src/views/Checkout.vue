@@ -1,22 +1,26 @@
 <template>
   <div id="hub20-checkout">
     <Spinner v-if="!store" message="Connecting to store..." />
-    <TokenSelector v-if="store && !selectedToken"/>
-    <PaymentTracker
-      v-if="store && selectedToken"
-      />
+    <Spinner v-if='store && selectedToken && !paymentOrder' message='Creating Payment Order...' />
+    <TokenSelector v-if="store && !paymentOrder"/>
+    <PaymentOrder v-if="store && paymentOrder && !paymentOrder.isFinalized"/>
+    <PaymentTracker v-if="store && paymentOrder && paymentOrder.isFinalized"/>
   </div>
 </template>
 
 <script>
+import {mapState, mapGetters} from 'vuex'
+
 import TokenSelector from '@/components/TokenSelector.vue'
+import PaymentOrder from '@/components/PaymentOrder.vue'
 import PaymentTracker from '@/components/PaymentTracker.vue'
 import Spinner from '@/components/Spinner.vue'
+
 
 export default {
     name: 'checkout',
     components: {
-        TokenSelector, PaymentTracker, Spinner
+        TokenSelector, PaymentOrder, PaymentTracker, Spinner
     },
     data() {
         return {
@@ -24,12 +28,8 @@ export default {
         }
     },
     computed: {
-        selectedToken() {
-            return this.$store.state.selectedToken
-        },
-        store() {
-            return this.$store.state.store
-        }
+        ...mapGetters(['paymentOrder']),
+        ...mapState(['store', 'selectedToken'])
     },
     async mounted() {
         this.$store.dispatch('getStore')

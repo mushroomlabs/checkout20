@@ -169,7 +169,10 @@ export default {
                 display: grid;
                 min-height: 300px;
                 grid-template-areas: "head head head head head"
-                                         "qrcode instructions instructions instructions instructions";
+                                         "qrcode instructions instructions instructions instructions"
+                                         "qrcode instructions instructions instructions instructions"
+                                         "qrcode . . web3connector ."
+                                         "qrcode . . . .";
 
                 span.payment-method {
                     grid-area: head;
@@ -181,15 +184,18 @@ export default {
                     height: 200px;
                 }
 
-                div.payment-instructions {
+                .payment-instructions {
                     grid-area: instructions;
                     justify-content: left;
 
                     .transfer.address {
                         display: block;
-                        margin: 1vh auto;
                         font-weight: 800;
                     }
+                }
+
+                .payment-order-web3-connector {
+                    grid-area: web3connector
                 }
             }
 

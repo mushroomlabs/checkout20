@@ -13,6 +13,7 @@
           <dt>Address</dt>
           <dd><span class='ethereum transfer address'>{{ paymentRouting.blockchain }}</span></dd>
       </dl>
+      <PaymentOrderWeb3Connector v-if='isWeb3BrowserAvailable' />
     </li>
     <li v-if='paymentRouting.raiden' class='payment-method raiden'>
       <span class='payment-method'>Raiden</span>
@@ -35,6 +36,8 @@
 <script>
 import QRCode from 'qrcode'
 import {mapState, mapGetters} from 'vuex'
+import PaymentOrderWeb3Connector from './PaymentOrderWeb3Connector.vue'
+
 
 async function generateQRCode(display_element, address) {
     let text = `ethereum:${address}`
@@ -47,7 +50,13 @@ async function generateQRCode(display_element, address) {
 
 export default {
     name: 'PaymentOrderRouting',
+    components: {
+        PaymentOrderWeb3Connector
+    },
     computed:{
+        isWeb3BrowserAvailable: function() {
+            return Boolean(window && (window.ethereum || window.web3))
+        },
         ...mapGetters(['paymentRouting', 'getTokenAmountDue', 'amountFormatted', 'tokenAmountDueFormatted']),
         ...mapState(['store', 'selectedToken'])
     },
