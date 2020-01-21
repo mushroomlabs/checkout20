@@ -4,7 +4,7 @@
     <TokenSelector v-if="store && !selectedToken"/>
     <PaymentTracker
       v-if="store && selectedToken"
-    />
+      />
   </div>
 </template>
 

@@ -167,7 +167,6 @@ export default {
 
             li.payment-method.ethereum {
                 display: grid;
-                width: 100%;
                 min-height: 300px;
                 grid-template-areas: "head head head head head"
                                          "qrcode instructions instructions instructions instructions";
@@ -194,15 +193,25 @@ export default {
                 }
             }
 
+            li.payment-method {
+                padding: 2vh 1em;
+            }
+
             dl {
-                display: inline-grid;
-                grid-template-columns: 35% auto;
+                display: grid;
+                grid-template-columns: 1fr 1fr;
                 grid-template-rows: 2vh;
             }
             dt {
                 &::after {
                     content: ": ";
                 }
+            }
+
+            dd {
+                display: inline;
+                text-align: right;
+                margin-inline-start: 0;
             }
         }
 
@@ -212,6 +221,11 @@ export default {
                 display: block;
                 text-align: right;
             }
+        }
+
+        div.payment-order-action-panel {
+            padding: 2vh 1em;
+
         }
     }
 

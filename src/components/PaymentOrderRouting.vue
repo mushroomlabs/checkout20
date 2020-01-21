@@ -3,33 +3,31 @@
     <li class='payment-method ethereum'>
       <span class='payment-method'>Ethereum Transfer</span>
       <canvas class='qr-code'></canvas>
-      <div class='payment-instructions'>
-        <div>
-          Please send
-          <span class='ethereum transfer amount' :data-clipboard='getTokenAmountDue(selectedToken)'>
-            {{ tokenAmountDueFormatted(selectedToken) }}
-          </span>
-          to the address below:
-        </div>
-        <div class='ethereum transfer address'>{{ paymentRouting.blockchain }}</div>
-      </div>
+      <dl class='payment-instructions'>
+          <dt>Amount</dt>
+          <dd>
+            <span class='ethereum transfer amount'  :data-clipboard='getTokenAmountDue(selectedToken)'>
+              {{ tokenAmountDueFormatted(selectedToken) }}
+            </span>
+          </dd>
+          <dt>Address</dt>
+          <dd><span class='ethereum transfer address'>{{ paymentRouting.blockchain }}</span></dd>
+      </dl>
     </li>
     <li v-if='paymentRouting.raiden' class='payment-method raiden'>
       <span class='payment-method'>Raiden</span>
-      <div class='payment-instructions'>
-        <div>
-          Please find the address and payment identifier below and initiate a transfer on Raiden of
-          <span class='raiden transfer amount' :data-clipboard='getTokenAmountDue(selectedToken)'>
-            {{ tokenAmountDueFormatted(selectedToken) }}</span>.
-          <strong>Don't forget that you must include the payment identifier</strong>
-        </div>
-        <dl>
-          <dt>Address</dt>
-          <dd class='raiden transfer address'>{{ paymentRouting.raiden }}</dd>
-          <dt>Payment Identifier</dt>
-          <dd class='raiden transfer identifier'>{{ paymentRouting.identifier }}</dd>
-        </dl>
-      </div>
+      <dl class='payment-instructions'>
+        <dt>Amount</dt>
+        <dd>
+          <span class='raiden transfer amount'  :data-clipboard='getTokenAmountDue(selectedToken)'>
+            {{ tokenAmountDueFormatted(selectedToken) }}
+          </span>
+        </dd>
+        <dt>Address</dt>
+        <dd><span class='ethereum transfer address'>{{ paymentRouting.raiden }}</span></dd>
+        <dt>Payment Identifier</dt>
+        <dd><span class='raiden transfer identifier'>{{ paymentRouting.identifier }}</span></dd>
+      </dl>
     </li>
   </ul>
 </template>

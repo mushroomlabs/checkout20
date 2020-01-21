@@ -163,6 +163,10 @@ export default new Vuex.Store({
         },
         setCheckoutWebSocket(state, checkoutWebSocket) {
             state.checkoutWebSocket = checkoutWebSocket
+        },
+        reset(state) {
+            state.checkout = null
+            state.selectedToken = null
         }
     },
     actions: {
@@ -191,6 +195,16 @@ export default new Vuex.Store({
             let response = await fetch(url);
             let rate = await response.json()
             commit('setExchangeRate', rate)
+        },
+        async reset({commit, state}) {
+            if (state && state.checkout && state.checkout.url) {
+                await fetch(state.checkout.url, {
+                    method: 'DELETE'
+                })
+            }
+
+            commit('reset')
+
         },
         async makeCheckout({commit, state, getters, dispatch}) {
             let tokenAmount = getters.getTokenAmountDue(state.selectedToken)
