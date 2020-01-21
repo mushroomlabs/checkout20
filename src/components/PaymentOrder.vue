@@ -1,6 +1,5 @@
 <template>
 <div class='payment-tracker'>
-  <Spinner v-if='!paymentOrder' message='Creating Payment Order...' />
   <h1 v-if='paymentOrder'>
     Payment to <span class='store'>{{ store.name }}</span>
   </h1>

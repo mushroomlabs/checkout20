@@ -2,7 +2,7 @@
 <div class='payment-order-timer'>
   <span class='time-remaining-display'>Time Remaining: {{ timeRemainingFormatted }}</span>
   <progress-bar
-    v-if='!isExpired && !paymentOrder.isFinalized'
+    v-if='!isExpired'
     name='time-remaining-progress-bar'
     :val='timeRemainingPercentage'
     :class='timeRemainingStatus'

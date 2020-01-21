@@ -1,4 +1,4 @@
-<template>
+l<template>
 <li v-on:click='selectToken' class='token-selector-item'>
   <span v-if='token' class='token-name'>{{ token.name }}</span>
   <img
@@ -17,8 +17,9 @@
 
 
 <script>
-  import TokenExchangeRate from './TokenExchangeRate.vue'
-  import Spinner from './Spinner.vue'
+import {mapState} from 'vuex'
+import TokenExchangeRate from './TokenExchangeRate.vue'
+import Spinner from './Spinner.vue'
 
 export default {
     name: 'TokenSelectorItem',
@@ -30,23 +31,12 @@ export default {
     },
     computed: {
         spinnerMessage: function() {
-            return `Fetching ${this.tokenCode}/${this.currency} exchange rate`
-        },
-        tokenUrl: function() {
-            return `${this.apiRootUrl}/api/tokens/token/${this.tokenCode}`
-        },
-        apiRootUrl() {
-            return this.$store.state.apiRootUrl
-        },
-        amountDue() {
-            return this.$store.state.amountDue
-        },
-        currency() {
-            return this.$store.state.pricingCurrency
+            return `Fetching ${this.tokenCode}/${this.pricingCurrency} exchange rate`
         },
         token() {
             return this.$store.getters.getToken(this.tokenCode)
-        }
+        },
+        ...mapState(['apiRootUrl', 'pricingCurrency'])
     },
     methods: {
         selectToken: function() {
