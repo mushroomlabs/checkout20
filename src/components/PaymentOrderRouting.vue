@@ -6,8 +6,8 @@
       <dl class='payment-instructions'>
           <dt>Amount</dt>
           <dd>
-            <span class='ethereum transfer amount'  :data-clipboard='getTokenAmountDue(selectedToken)'>
-              {{ tokenAmountDueFormatted(selectedToken) }}
+            <span class='ethereum transfer amount' :data-clipboard='paymentOrder.tokenAmount'>
+              {{ tokenAmountDueFormatted }}
             </span>
           </dd>
           <dt>Address</dt>
@@ -20,8 +20,8 @@
       <dl class='payment-instructions'>
         <dt>Amount</dt>
         <dd>
-          <span class='raiden transfer amount'  :data-clipboard='getTokenAmountDue(selectedToken)'>
-            {{ tokenAmountDueFormatted(selectedToken) }}
+          <span class='raiden transfer amount' :data-clipboard='paymentOrder.tokenAmount'>
+            {{ tokenAmountDueFormatted }}
           </span>
         </dd>
         <dt>Address</dt>
@@ -57,7 +57,10 @@ export default {
         isWeb3BrowserAvailable: function() {
             return Boolean(window && (window.ethereum || window.web3))
         },
-        ...mapGetters(['paymentRouting', 'getTokenAmountDue', 'amountFormatted', 'tokenAmountDueFormatted']),
+        tokenAmountDueFormatted: function() {
+            return this.tokenAmountFormatted(this.paymentOrder.tokenAmount, this.selectedToken)
+        },
+        ...mapGetters(['paymentRouting', 'paymentOrder', 'amountFormatted', 'tokenAmountFormatted']),
         ...mapState(['store', 'selectedToken'])
     },
     async mounted() {

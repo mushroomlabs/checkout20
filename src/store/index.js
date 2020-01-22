@@ -97,13 +97,13 @@ export default new Vuex.Store({
                 raiden: payment_method.raiden
             }
         },
+        convertToTokenAmount: (state, getters) => (currencyAmount, tokenCode) => {
+            let exchangeRate = getters.getExchangeRate(tokenCode)
+            return exchangeRate && (parseFloat(currencyAmount) / parseFloat(exchangeRate))
+        },
         getExchangeRate: (state) => (tokenCode) => {
             let rateData = state.exchangeRates[tokenCode]
             return rateData && rateData.rate
-        },
-        getTokenAmountDue: (state, getters) => (tokenCode) => {
-            let exchangeRate = getters.getExchangeRate(tokenCode)
-            return exchangeRate && (parseFloat(state.amountDue) / parseFloat(exchangeRate))
         },
         getTokenAmountWei: (state, getters) => (amount, tokenCode) => {
             let token = getters.getToken(tokenCode)
@@ -118,16 +118,11 @@ export default new Vuex.Store({
             );
             return formatter.format(parseFloat(state.amountDue))
         },
-        tokenAmountFormatted: (state, getters) => (tokenCode) => {
-            let tokenAmountDue = getters.getTokenAmountDue(tokenCode)
-            let formatter = new Intl.NumberFormat([], {maximumSignificantDigits: 6})
-            let formattedAmount = formatter.format(tokenAmountDue)
-            return `${formattedAmount} ${tokenCode}`
-        },
-        tokenAmountDueFormatted: (state, getters) => (tokenCode) => {
-            let tokenAmountDue = getters.getTokenAmountDue(tokenCode)
-            let formatter = new Intl.NumberFormat([], {maximumSignificantDigits: 18})
-            let formattedAmount = formatter.format(tokenAmountDue)
+        tokenAmountFormatted: (state, getters) => (amount, tokenCode, maxSignificantDigits) => {
+            let token = getters.getToken(tokenCode)
+            let digits = maxSignificantDigits || token.decimals
+            let formatter = new Intl.NumberFormat([], {maximumSignificantDigits: digits})
+            let formattedAmount = formatter.format(amount)
             return `${formattedAmount} ${tokenCode}`
         },
         websocketRootUrl: (state) => {
@@ -216,11 +211,11 @@ export default new Vuex.Store({
 
         },
         async makeCheckout({commit, state, getters, dispatch}) {
-            let tokenAmount = getters.getTokenAmountDue(state.selectedToken)
+            let tokenAmountDue = getters.convertToTokenAmount(state.amountDue, state.selectedToken)
             let checkoutUrl = `${state.apiRootUrl}/api/checkout`
             let checkoutData = await postJSON(checkoutUrl, {
                 store: state.storeId,
-                amount: tokenAmount,
+                amount: tokenAmountDue,
                 currency: state.selectedToken,
                 external_identifier: state.identifier
             })
@@ -248,6 +243,12 @@ export default new Vuex.Store({
         },
         async makeWeb3Transfer({getters, state, dispatch}) {
             let paymentMethod = getters.paymentRouting
+            let tokenAmountDue = state.checkout && state.checkout.amount
+
+            if (!tokenAmountDue) {
+                dispatch('displayErrorMessage', 'Can not determine transfer amount')
+                return
+            }
 
             if (!paymentMethod || !paymentMethod.blockchain){
                 dispatch('displayErrorMessage', 'Transfer via blockchain not possible at the moment')
@@ -279,7 +280,7 @@ export default new Vuex.Store({
                 return
             }
 
-            let tokenAmountDue = getters.getTokenAmountDue(state.selectedToken)
+
             let tokenWeiDue = getters.getTokenAmountWei(tokenAmountDue, state.selectedToken)
             let sender = (window.ethereum && window.ethereum.selectedAddress) || w3.eth.defaultAccount
             let recipient = paymentMethod.blockchain

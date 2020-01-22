@@ -1,7 +1,7 @@
 <template>
   <div v-if='exchangeRateFormatted' class='token-exchange-rate'>
     <div class='rate'>Current Price: {{ exchangeRateFormatted }}</div>
-    <div class='due'>Total to Pay: {{ tokenAmountFormatted(token.code) }}</div>
+    <div class='due'>Total to Pay: {{ tokenAmountFormatted(tokenAmountDue, token.code, 6) }}</div>
   </div>
 </template>
 
@@ -22,7 +22,10 @@ export default {
             )
             return `${formatter.format(exchangeRate)} / ${this.token.code}`
         },
-        ...mapGetters(['tokenAmountFormatted', 'getExchangeRate']),
+        tokenAmountDue: function() {
+            return this.convertToTokenAmount(this.amountDue, this.token.code)
+        },
+        ...mapGetters(['convertToTokenAmount', 'getExchangeRate', 'tokenAmountFormatted']),
         ...mapState(['amountDue', 'pricingCurrency']),
     }
 }
