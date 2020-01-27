@@ -14,6 +14,8 @@
 
 
 <script>
+import {mapState} from 'vuex'
+
 import TokenSelectorItem from './TokenSelectorItem.vue'
 
 export default {
@@ -27,18 +29,13 @@ export default {
             let formatter = new Intl.NumberFormat([], {style: "currency", currency: currency});
             return formatter.format(this.amountDue);
         },
-        store() {
-            return this.$store.state.store
-        },
-        amountDue() {
-            return this.$store.state.amountDue
-        },
         currency() {
             return this.$store.state.pricingCurrency
         },
         acceptedTokens() {
             return this.$store.state.store.accepted_currencies
         },
+        ...mapState(['store', 'amountDue'])
     }
 }
 </script>

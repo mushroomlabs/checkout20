@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "core-js": "^3.4.4",
+    "decimal.js-light": "^2.5.0",
     "jshashes": "^1.0.7",
     "qrcode": "^1.4.4",
     "vue": "^2.6.10",

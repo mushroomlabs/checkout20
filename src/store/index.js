@@ -1,6 +1,8 @@
+import Decimal from 'decimal.js-light'
 import Hashes from 'jshashes'
 import Vue from 'vue'
 import Vuex from 'vuex'
+
 
 import Erc20 from './erc20'
 
@@ -34,11 +36,13 @@ export default new Vuex.Store({
 
         // values that do change during runtime
         store: null,
-        selectedToken: null,
+        selectedTokenCode: null,
         checkout: null,
         checkoutWebsocket: null,
         tokens: {},
-        exchangeRates: {}
+        exchangeRates: {},
+        blockchainTransferMap: {},
+        raidenTransferMap: {},
     },
     getters: {
         acceptedTokens: (state) => {
@@ -46,16 +50,15 @@ export default new Vuex.Store({
         },
         paymentOrder: (state) => {
             let checkout = state.checkout
-            let payment_method = checkout && checkout.payment_method
+            let paymentMethod = checkout && checkout.payment_method
 
             return checkout && {
                 token: checkout.currency,
-                tokenAmount: checkout.amount,
+                tokenAmount: Decimal(checkout.amount),
                 identifier: checkout.external_identifier,
                 status: checkout.status,
                 createdTime: checkout && new Date(checkout.created),
-                expirationTime: payment_method && new Date(payment_method.expiration_time),
-                isFinalized: !checkout || checkout.status != 'requested',
+                expirationTime: paymentMethod && new Date(paymentMethod.expiration_time)
             }
         },
         paymentOrderTimerStatus: (state) => (date) => {
@@ -97,13 +100,49 @@ export default new Vuex.Store({
                 raiden: payment_method.raiden
             }
         },
+        isPaid: (state, getters) => {
+            let paymentOrder = getters.paymentOrder
+            let orderAmount =  paymentOrder && paymentOrder.tokenAmount
+            return Boolean(orderAmount && getters.tokenAmountTransferred.gte(orderAmount))
+        },
+        tokenAmountTransferred: (state, getters) => {
+            return getters.tokenAmountPending.add(getters.tokenAmountConfirmed)
+        },
+        selectedToken: (state, getters) => {
+            return state.selectedTokenCode && getters.getToken(state.selectedTokenCode)
+        },
+        tokenAmountPending: (state, getters) => {
+            let pendingStates = ['sent', 'received', 'pending']
+            let blockchainPendingTransfers = getters.blockchainTransfers.filter(transfer => pendingStates.includes(transfer.status))
+            let transferAmounts = blockchainPendingTransfers.map(transfer => Decimal(transfer.amount))
+            return transferAmounts.reduce((acc, value) => acc.add(Decimal(value)), Decimal(0))
+        },
+        tokenAmountConfirmed: (state, getters) => {
+            let reducer = (acc, value) => acc.add(Decimal(value))
+            let blockchainConfirmedTransfers = getters.blockchainTransfers.filter(transfer => transfer.status == 'confirmed')
+            let raidenConfirmedTransfers = getters.raidenTransfers.filter(transfer => transfer.status == 'confirmed')
+            let blockchainTransferAmounts = blockchainConfirmedTransfers.map(transfer => Decimal(transfer.amount))
+            let raidenTransferAmounts = raidenConfirmedTransfers.map(transfer => Decimal(transfer.amount))
+            let totalBlockchain = blockchainTransferAmounts.reduce(reducer, Decimal(0))
+            let totalRaiden = raidenTransferAmounts.reduce(reducer, Decimal(0))
+
+            return totalBlockchain.add(totalRaiden)
+        },
+        tokenAmountDue: (state, getters) => {
+            let token = getters.selectedToken
+            let paymentOrder = getters.paymentOrder
+            let orderAmount = paymentOrder && paymentOrder.tokenAmount
+
+            let due = orderAmount && orderAmount.sub(getters.tokenAmountTransferred)
+            return due && due.gt(0) ? due.toPrecision(token.decimals) : 0
+        },
         convertToTokenAmount: (state, getters) => (currencyAmount, tokenCode) => {
             let exchangeRate = getters.getExchangeRate(tokenCode)
-            return exchangeRate && (parseFloat(currencyAmount) / parseFloat(exchangeRate))
+            return exchangeRate && Decimal(currencyAmount).div(Decimal(exchangeRate))
         },
         getExchangeRate: (state) => (tokenCode) => {
             let rateData = state.exchangeRates[tokenCode]
-            return rateData && rateData.rate
+            return rateData && Decimal(rateData.rate)
         },
         getTokenAmountWei: (state, getters) => (amount, tokenCode) => {
             let token = getters.getToken(tokenCode)
@@ -113,19 +152,43 @@ export default new Vuex.Store({
             return state.tokens[tokenCode]
         },
         amountFormatted: (state) => {
+            if (!state.pricingCurrency) {
+                return ''
+            }
+
             let formatter = new Intl.NumberFormat(
                 [], {style: 'currency', currency: state.pricingCurrency}
             );
-            return formatter.format(parseFloat(state.amountDue))
+            return formatter.format(Decimal(state.amountDue).toNumber())
         },
         tokenAmountFormatted: (state, getters) => (amount, tokenCode, maxSignificantDigits) => {
+            if (!tokenCode || !amount) {
+                return 'N/A'
+            }
+
             let token = getters.getToken(tokenCode)
             let digits = maxSignificantDigits || token.decimals
             let formatter = new Intl.NumberFormat([], {maximumSignificantDigits: digits})
             let formattedAmount = formatter.format(amount)
             return `${formattedAmount} ${tokenCode}`
         },
+        transfers: (state, getters) => {
+            return [
+                ...getters.blockchainTransfers,
+                ...getters.raidenTransfers
+            ]
+        },
+        blockchainTransfers: (state) => {
+            return Object.values(state.blockchainTransferMap)
+        },
+        raidenTransfers: (state) => {
+            return Object.values(state.raidenTransferMap)
+        },
         websocketRootUrl: (state) => {
+            if (!state.apiRootUrl) {
+                return null
+            }
+
             let url = new URL(state.apiRootUrl)
             let ws_protocol = url.protocol == 'http:' ? 'ws:': 'wss:'
             url.protocol = ws_protocol
@@ -148,7 +211,7 @@ export default new Vuex.Store({
             state.contentCopiedHandler = setupData.onCopyToClipboard
         },
         selectToken(state, token) {
-            state.selectedToken = token
+            state.selectedTokenCode = token
         },
         setStore(state, storeData) {
             state.store = storeData
@@ -167,7 +230,13 @@ export default new Vuex.Store({
         },
         reset(state) {
             state.checkout = null
-            state.selectedToken = null
+            state.selectedTokenCode = null
+        },
+        registerBlockchainTransfer(state, transferData) {
+            if (!transferData || !transferData.identifier) {
+                return
+            }
+            Vue.set(state.blockchainTransferMap, transferData.identifier, transferData)
         }
     },
     actions: {
@@ -179,7 +248,7 @@ export default new Vuex.Store({
                 state.contentCopiedHander(containerElement)
             }
         },
-        async displayError(_, message) {
+        async displayErrorMessage(_, message) {
             alert(message)
         },
         async getStore({commit, state}) {
@@ -211,12 +280,14 @@ export default new Vuex.Store({
 
         },
         async makeCheckout({commit, state, getters, dispatch}) {
-            let tokenAmountDue = getters.convertToTokenAmount(state.amountDue, state.selectedToken)
+            let token = getters.getToken(state.selectedTokenCode)
+            let tokenAmountDue = getters.convertToTokenAmount(state.amountDue, state.selectedTokenCode)
+
             let checkoutUrl = `${state.apiRootUrl}/api/checkout`
             let checkoutData = await postJSON(checkoutUrl, {
                 store: state.storeId,
-                amount: tokenAmountDue,
-                currency: state.selectedToken,
+                amount: String(Decimal(tokenAmountDue).toDecimalPlaces(token.decimals)),
+                currency: state.selectedTokenCode,
                 external_identifier: state.identifier
             })
 
@@ -241,9 +312,9 @@ export default new Vuex.Store({
                 commit('setCheckout', checkoutData)
             }
         },
-        async makeWeb3Transfer({getters, state, dispatch}) {
+        async makeWeb3Transfer({commit, getters, state, dispatch}) {
             let paymentMethod = getters.paymentRouting
-            let tokenAmountDue = state.checkout && state.checkout.amount
+            let tokenAmountDue = getters.tokenAmountDue
 
             if (!tokenAmountDue) {
                 dispatch('displayErrorMessage', 'Can not determine transfer amount')
@@ -271,7 +342,7 @@ export default new Vuex.Store({
                 }
             }
 
-            let token = getters.getToken(state.selectedToken)
+            let token = getters.getToken(state.selectedTokenCode)
             let current_network_id = w3.version.network
 
             if (current_network_id != token.network_id) {
@@ -280,8 +351,7 @@ export default new Vuex.Store({
                 return
             }
 
-
-            let tokenWeiDue = getters.getTokenAmountWei(tokenAmountDue, state.selectedToken)
+            let tokenWeiDue = getters.getTokenAmountWei(tokenAmountDue, state.selectedTokenCode)
             let sender = (window.ethereum && window.ethereum.selectedAddress) || w3.eth.defaultAccount
             let recipient = paymentMethod.blockchain
 
@@ -301,15 +371,16 @@ export default new Vuex.Store({
 
             w3.eth.sendTransaction(transactionData, function(error, tx) {
                 if (tx) {
-                    dispatch('notifyTransactionSent', tx)
+                    commit('registerBlockchainTransfer', {
+                        identifier: tx,
+                        token: state.selectedTokenCode,
+                        status: 'sent'
+                    })
                 }
                 if (error) {
                     dispatch('notifyTransactionError', error)
                 }
             })
-        },
-        async notifyTransactionSent(_, transactionHash) {
-            console.log(transactionHash)
         },
         async notifyTransactionError(_, transactionError) {
             console.error(transactionError)
@@ -320,26 +391,74 @@ export default new Vuex.Store({
             });
         },
         handleCheckoutMessage({dispatch}, message) {
-            let {voucher, event} = message
+            let {event} = message
 
             dispatch('updateCheckout')
             switch(event) {
-            case 'payment.confirmed':
-                dispatch('handlePaymentConfirmed', voucher)
+            case 'payment.sent':
+                dispatch('handlePaymentSent', message)
                 break
             case 'payment.received':
-                dispatch('handlePaymentReceived', voucher)
+                dispatch('handlePaymentReceived', message)
+                break
+            case 'payment.confirmed':
+                dispatch('handlePaymentConfirmed', message)
                 break
             }
         },
-        handlePaymentConfirmed({state}, voucher){
-            let handler = state.paymentConfirmedHandler
+        handlePaymentSent({commit, state}, eventMessage){
+            let {voucher, token, amount, identifier} = eventMessage
+
+            let handler = state.paymentSentHandler
+
+            commit('registerBlockchainTransfer', {
+                identifier: identifier,
+                token: token,
+                amount: Decimal(amount),
+                status: 'pending'
+            })
+
             if (handler) {
                 handler(voucher)
             }
         },
-        handlePaymentReceived({state}, voucher){
+        handlePaymentReceived({commit, state}, eventMessage){
+            let {voucher, token, amount, identifier} = eventMessage
+
+            commit('registerBlockchainTransfer', {
+                identifier: identifier,
+                token: token,
+                amount: Decimal(amount),
+                status: 'received'
+            })
+
             let handler = state.paymentReceivedHandler
+            if (handler) {
+                handler(voucher)
+            }
+        },
+        handlePaymentConfirmed({commit, state, dispatch}, eventMessage){
+            let {voucher, token, amount, identifier, payment_method} = eventMessage
+
+            let transferData = {
+                identifier: identifier,
+                token: token,
+                amount: Decimal(amount),
+                status: 'confirmed'
+            }
+
+            switch(payment_method) {
+            case 'blockchain':
+                commit('registerBlockchainTransfer', transferData)
+                break
+            case 'raiden':
+                commit('registerRaidenTransfer', transferData)
+                break
+            default:
+                dispatch('displayErrorMessage', `Did not expect to receive ${payment_method} payment`)
+            }
+
+            let handler = state.paymentConfirmedHandler
             if (handler) {
                 handler(voucher)
             }

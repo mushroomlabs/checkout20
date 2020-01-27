@@ -7,7 +7,7 @@
   <div class="payment-amount">
     <span class="field-description">Amount</span>
     <span class="field-value">{{ amountFormatted }}</span>
-    <span class="field-value">{{ tokenAmountDueFormatted(selectedToken) }}</span>
+    <span class="field-value">{{ tokenAmountFormatted(paymentOrder.tokenAmount, selectedTokenCode) }}</span>
   </div>
 </div>
 </template>
@@ -18,8 +18,8 @@ import {mapState, mapGetters} from 'vuex'
 export default {
     name: 'PaymentOrderDetails',
     computed:{
-        ...mapGetters(['paymentOrder', 'amountFormatted', 'tokenAmountDueFormatted']),
-        ...mapState(['store', 'selectedToken'])
+        ...mapGetters(['tokenAmountFormatted', 'paymentOrder', 'amountFormatted']),
+        ...mapState(['store', 'selectedTokenCode'])
     }
 }
 </script>

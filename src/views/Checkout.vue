@@ -1,10 +1,10 @@
 <template>
-  <div id="hub20-checkout">
-    <Spinner v-if="!store" message="Connecting to store..." />
-    <Spinner v-if='store && selectedToken && !paymentOrder' message='Creating Payment Order...' />
-    <TokenSelector v-if="store && !paymentOrder"/>
-    <PaymentOrder v-if="store && paymentOrder && !paymentOrder.isFinalized"/>
-    <PaymentTracker v-if="store && paymentOrder && paymentOrder.isFinalized"/>
+  <div id='hub20-checkout'>
+    <Spinner v-if='!store' message='Connecting to store...' />
+    <Spinner v-if='store && selectedTokenCode && !paymentOrder' message='Creating Payment Order...' />
+    <TokenSelector v-if='store && !paymentOrder'/>
+    <PaymentOrder v-if='store && paymentOrder && !isPaid'/>
+    <PaymentTracker v-if='store && paymentOrder'/>
   </div>
 </template>
 
@@ -28,8 +28,8 @@ export default {
         }
     },
     computed: {
-        ...mapGetters(['paymentOrder']),
-        ...mapState(['store', 'selectedToken'])
+        ...mapGetters(['paymentOrder', 'isPaid']),
+        ...mapState(['store', 'selectedTokenCode'])
     },
     async mounted() {
         this.$store.dispatch('getStore')

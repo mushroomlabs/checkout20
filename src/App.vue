@@ -1,6 +1,5 @@
 <template>
 <div id="app">
-
   <Checkout v-if="storeId" />
 </div>
 </template>
@@ -93,7 +92,7 @@ export default {
         }
     }
 
-    div.payment-tracker {
+    div.payment-order {
         h1 {
             text-align: center;
         }

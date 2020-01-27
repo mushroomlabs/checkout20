@@ -6,7 +6,7 @@
       <dl class='payment-instructions'>
           <dt>Amount</dt>
           <dd>
-            <span class='ethereum transfer amount' :data-clipboard='paymentOrder.tokenAmount'>
+            <span class='ethereum transfer amount' :data-clipboard='tokenAmountDue'>
               {{ tokenAmountDueFormatted }}
             </span>
           </dd>
@@ -20,7 +20,7 @@
       <dl class='payment-instructions'>
         <dt>Amount</dt>
         <dd>
-          <span class='raiden transfer amount' :data-clipboard='paymentOrder.tokenAmount'>
+          <span class='raiden transfer amount' :data-clipboard='tokenAmountDue'>
             {{ tokenAmountDueFormatted }}
           </span>
         </dd>
@@ -58,10 +58,10 @@ export default {
             return Boolean(window && (window.ethereum || window.web3))
         },
         tokenAmountDueFormatted: function() {
-            return this.tokenAmountFormatted(this.paymentOrder.tokenAmount, this.selectedToken)
+            return this.tokenAmountFormatted(this.tokenAmountDue, this.selectedTokenCode)
         },
-        ...mapGetters(['paymentRouting', 'paymentOrder', 'amountFormatted', 'tokenAmountFormatted']),
-        ...mapState(['store', 'selectedToken'])
+        ...mapGetters(['paymentRouting', 'paymentOrder', 'amountFormatted', 'tokenAmountFormatted', 'tokenAmountDue', 'getToken']),
+        ...mapState(['store', 'selectedTokenCode'])
     },
     async mounted() {
         let store = this.$store
