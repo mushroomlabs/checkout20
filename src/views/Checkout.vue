@@ -3,7 +3,7 @@
     <Spinner v-if='!store' message='Connecting to store...' />
     <Spinner v-if='store && selectedTokenCode && !paymentOrder' message='Creating Payment Order...' />
     <TokenSelector v-if='store && !paymentOrder'/>
-    <PaymentOrder v-if='store && paymentOrder && !isPaid'/>
+    <PaymentOrder v-if='store && paymentOrder && !isPaid && !hasPendingTransfers'/>
     <PaymentTracker v-if='store && paymentOrder'/>
   </div>
 </template>
@@ -28,7 +28,7 @@ export default {
         }
     },
     computed: {
-        ...mapGetters(['paymentOrder', 'isPaid']),
+        ...mapGetters(['paymentOrder', 'hasPendingTransfers', 'isPaid']),
         ...mapState(['store', 'selectedTokenCode'])
     },
     async mounted() {
