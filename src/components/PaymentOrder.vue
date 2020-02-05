@@ -1,14 +1,13 @@
 <template>
-<div class='payment-order'>
-  <h1 v-if='paymentOrder'>
+<div class='payment-order' v-if='paymentOrder'>
+  <h1>
     Payment to <span class='store'>{{ store.name }}</span>
   </h1>
 
-  <PaymentOrderDetails v-if='paymentOrder'/>
-  <PaymentOrderRouting v-if='paymentOrder'/>
-  <PaymentOrderStatus v-if='paymentOrder'/>
-  <PaymentOrderActionPanel v-if='paymentOrder'/>
-  <PaymentOrderTransferList/>
+  <PaymentOrderDetails/>
+  <PaymentOrderRouting/>
+  <PaymentOrderStatus/>
+  <PaymentOrderActionPanel/>
 </div>
 </template>
 
@@ -19,7 +18,6 @@ import PaymentOrderActionPanel from './PaymentOrderActionPanel.vue'
 import PaymentOrderDetails from './PaymentOrderDetails.vue'
 import PaymentOrderRouting from './PaymentOrderRouting.vue'
 import PaymentOrderStatus from './PaymentOrderStatus.vue'
-import PaymentOrderTransferList from './PaymentOrderTransferList.vue'
 
 
  export default {
@@ -28,8 +26,7 @@ import PaymentOrderTransferList from './PaymentOrderTransferList.vue'
          PaymentOrderActionPanel,
          PaymentOrderDetails,
          PaymentOrderRouting,
-         PaymentOrderStatus,
-         PaymentOrderTransferList
+         PaymentOrderStatus
      },
      computed:{
          ...mapGetters(['paymentOrder']),

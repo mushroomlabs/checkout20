@@ -6,9 +6,12 @@
       <dl class='payment-instructions'>
           <dt>Amount</dt>
           <dd>
-            <span class='ethereum transfer amount' :data-clipboard='tokenAmountDue'>
-              {{ tokenAmountDueFormatted }}
-            </span>
+            <TokenAmountDisplay
+              class='ethereum transfer amount'
+              :valueToCopy='tokenAmountDue'
+              :token='selectedToken'
+              :amount='tokenAmountDue'
+              />
           </dd>
           <dt>Address</dt>
           <dd><span class='ethereum transfer address'>{{ paymentRouting.blockchain }}</span></dd>
@@ -20,9 +23,12 @@
       <dl class='payment-instructions'>
         <dt>Amount</dt>
         <dd>
-          <span class='raiden transfer amount' :data-clipboard='tokenAmountDue'>
-            {{ tokenAmountDueFormatted }}
-          </span>
+          <TokenAmountDisplay
+            class='raiden transfer amount'
+            :token='selectedToken'
+            :amount='tokenAmountDue'
+            :valueToCopy='tokenAmountDue'
+            />
         </dd>
         <dt>Address</dt>
         <dd><span class='ethereum transfer address'>{{ paymentRouting.raiden }}</span></dd>
@@ -36,8 +42,9 @@
 <script>
 import QRCode from 'qrcode'
 import {mapState, mapGetters} from 'vuex'
-import PaymentOrderWeb3Connector from './PaymentOrderWeb3Connector.vue'
 
+import TokenAmountDisplay from './TokenAmountDisplay.vue'
+import PaymentOrderWeb3Connector from './PaymentOrderWeb3Connector.vue'
 
 async function generateQRCode(display_element, address) {
     let text = `ethereum:${address}`
@@ -51,29 +58,18 @@ async function generateQRCode(display_element, address) {
 export default {
     name: 'PaymentOrderRouting',
     components: {
-        PaymentOrderWeb3Connector
+        PaymentOrderWeb3Connector, TokenAmountDisplay
     },
     computed:{
         isWeb3BrowserAvailable: function() {
             return Boolean(window && (window.ethereum || window.web3))
         },
-        tokenAmountDueFormatted: function() {
-            return this.tokenAmountFormatted(this.tokenAmountDue, this.selectedTokenCode)
-        },
-        ...mapGetters(['paymentRouting', 'paymentOrder', 'amountFormatted', 'tokenAmountFormatted', 'tokenAmountDue', 'getToken']),
-        ...mapState(['store', 'selectedTokenCode'])
+        ...mapGetters(['paymentRouting', 'paymentOrder', 'selectedToken', 'tokenAmountDue']),
+        ...mapState(['store']),
     },
     async mounted() {
-        let store = this.$store
         let canvas = this.$el.querySelector('li.payment-method.ethereum canvas')
-        await generateQRCode(canvas, this.paymentRouting.blockchain);
-
-        this.$el.querySelectorAll('.transfer').forEach(function(elem) {
-            elem.setAttribute('title', 'click to copy')
-            elem.onclick = function(evt) {
-                store.dispatch('copyToClipboard', evt.target)
-            }
-        });
+        await generateQRCode(canvas, this.paymentRouting.blockchain)
     }
 }
 </script>

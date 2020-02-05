@@ -1,7 +1,10 @@
 import Decimal from 'decimal.js-light'
 
 export default {
-    acceptedTokens: (state) => {
+    acceptedTokens: (state, getters) => {
+        return getters.acceptedTokenAddresses.map(address => getters.getToken(address))
+    },
+    acceptedTokenAddresses: (state) => {
         return (state.store && state.store.accepted_currencies) || []
     },
     paymentOrder: (state) => {
@@ -9,7 +12,7 @@ export default {
         let paymentMethod = checkout && checkout.payment_method
 
         return checkout && {
-            token: checkout.currency,
+            token: checkout.token,
             tokenAmount: Decimal(checkout.amount),
             identifier: checkout.external_identifier,
             status: checkout.status,
@@ -64,11 +67,15 @@ export default {
         let orderAmount =  paymentOrder && paymentOrder.tokenAmount
         return Boolean(orderAmount && getters.tokenAmountTransferred.gte(orderAmount))
     },
+    isFinalized: (state, getters) => {
+        let paymentOrder = getters.paymentOrder
+        return Boolean(paymentOrder && getters.isPaid)
+    },
     tokenAmountTransferred: (state, getters) => {
         return getters.tokenAmountPending.add(getters.tokenAmountConfirmed)
     },
     selectedToken: (state, getters) => {
-        return state.selectedTokenCode && getters.getToken(state.selectedTokenCode)
+        return state.selectedTokenAddress && getters.getToken(state.selectedTokenAddress)
     },
     tokenAmountPending: (state, getters) => {
         if (!getters.hasPendingTransfers) {
@@ -91,27 +98,32 @@ export default {
         return totalBlockchain.add(totalRaiden)
     },
     tokenAmountDue: (state, getters) => {
-        let token = getters.selectedToken
         let paymentOrder = getters.paymentOrder
         let orderAmount = paymentOrder && paymentOrder.tokenAmount
 
         let due = orderAmount && orderAmount.sub(getters.tokenAmountTransferred)
-        return due && due.gt(0) ? due.toPrecision(token.decimals) : 0
+        return due && due.gt(0) ? due.toNumber() : 0
     },
-    convertToTokenAmount: (state, getters) => (currencyAmount, tokenCode) => {
-        let exchangeRate = getters.getExchangeRate(tokenCode)
+    convertToTokenAmount: (state, getters) => (currencyAmount, token) => {
+        let exchangeRate = getters.getExchangeRate(token)
+
         return exchangeRate && Decimal(currencyAmount).div(Decimal(exchangeRate))
     },
-    getExchangeRate: (state) => (tokenCode) => {
-        let rateData = state.exchangeRates[tokenCode]
-        return rateData && Decimal(rateData.rate)
+    getExchangeRate: (state) => (token) => {
+        return token && state.exchangeRates[token.address]
     },
-    getTokenAmountWei: (state, getters) => (amount, tokenCode) => {
-        let token = getters.getToken(tokenCode)
+    getTokenAmountWei: (state, getters) => (amount, tokenAddress) => {
+        let token = getters.getToken(tokenAddress)
         return Math.floor(amount * (10 ** token.decimals))
     },
-    getToken: (state) => (tokenCode) => {
-        return state.tokens[tokenCode]
+    getToken: (state) => (tokenAddress) => {
+        return state.tokens[tokenAddress]
+    },
+    allTokens: (state) => {
+        let tokens = Object.values(state.tokens)
+
+        // Addresses are Hex strings of fixed sized so we can lexigographically compare them
+        return tokens.sort(function(one, other) { return one.address - other.address })
     },
     amountFormatted: (state) => {
         if (!state.pricingCurrency) {
@@ -122,17 +134,6 @@ export default {
             [], {style: 'currency', currency: state.pricingCurrency}
         );
         return formatter.format(Decimal(state.amountDue).toNumber())
-    },
-    tokenAmountFormatted: (state, getters) => (amount, tokenCode, maxSignificantDigits) => {
-        if (!tokenCode || !amount) {
-            return 'N/A'
-        }
-
-        let token = getters.getToken(tokenCode)
-        let digits = maxSignificantDigits || token.decimals
-        let formatter = new Intl.NumberFormat([], {maximumSignificantDigits: digits})
-        let formattedAmount = formatter.format(amount)
-        return `${formattedAmount} ${tokenCode}`
     },
     transfers: (state, getters) => {
         return [
@@ -146,7 +147,7 @@ export default {
     raidenTransfers: (state) => {
         return Object.values(state.raidenTransferMap)
     },
-    blockchainPendingTransfers: (state, getters) => {            
+    blockchainPendingTransfers: (state, getters) => {
         let pendingStates = ['sent', 'received', 'pending']
         return getters.blockchainTransfers.filter(transfer => pendingStates.includes(transfer.status))
     },

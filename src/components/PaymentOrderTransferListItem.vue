@@ -1,21 +1,25 @@
 <template>
-<li class='payment-order-transfer'>
-  <span class="amount">{{ tokenAmountFormatted(transfer.amount, transfer.token) }}</span>
+<li :class='transfer.status'>
+  <TokenAmountDisplay :token='transfer.token' :amount='transfer.amount'/>
   <span class="identifier">{{ transfer.identifier }}</span>
-  <span class="status">{{ transfer.status }}</span>
 </li>
 </template>
 
 <script>
 import {mapGetters} from 'vuex'
 
+import TokenAmountDisplay from './TokenAmountDisplay.vue'
+
 export default {
     name: 'PaymentOrderTransferListItem',
+    components: {
+        TokenAmountDisplay
+    },
     props: {
         transfer: Object
     },
     computed: {
-        ...mapGetters(['paymentOrder', 'tokenAmountFormatted']),
+        ...mapGetters(['paymentOrder']),
     },
 }
 </script>

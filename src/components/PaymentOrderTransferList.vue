@@ -1,5 +1,5 @@
 <template>
-<ul class='payment-order-transfers' v-if='transfers'>
+<ul class='payment-order-transfers'>
   <PaymentOrderTransferListItem
     v-for='transfer in transfers'
     :transfer='transfer'

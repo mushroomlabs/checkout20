@@ -7,19 +7,31 @@
   <div class="payment-amount">
     <span class="field-description">Amount</span>
     <span class="field-value">{{ amountFormatted }}</span>
-    <span class="field-value">{{ tokenAmountFormatted(paymentOrder.tokenAmount, selectedTokenCode) }}</span>
+    <span class="field-value">
+      <TokenAmountDisplay
+        :token='selectedToken'
+        :amount='tokenAmount'
+      />
+    </span>
   </div>
 </div>
 </template>
 
 <script>
-import {mapState, mapGetters} from 'vuex'
+import {mapGetters} from 'vuex'
+
+import TokenAmountDisplay from './TokenAmountDisplay.vue'
 
 export default {
     name: 'PaymentOrderDetails',
+    components: {
+        TokenAmountDisplay
+    },
     computed:{
-        ...mapGetters(['tokenAmountFormatted', 'paymentOrder', 'amountFormatted']),
-        ...mapState(['store', 'selectedTokenCode'])
+        tokenAmount: function() {
+            return this.paymentOrder.tokenAmount && this.paymentOrder.tokenAmount.toNumber()
+        },
+        ...mapGetters(['paymentOrder', 'amountFormatted', 'selectedToken'])
     }
 }
 </script>

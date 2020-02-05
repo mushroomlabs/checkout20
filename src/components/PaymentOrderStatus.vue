@@ -1,6 +1,7 @@
 <template>
   <div class='payment-order-status'>
     <PaymentOrderTimer/>
+    <PaymentOrderTransferList v-if='transfers'/>
   </div>
 </template>
 
@@ -11,6 +12,7 @@ import {mapGetters} from 'vuex'
 import VueMoment from 'vue-moment'
 
 import PaymentOrderTimer from './PaymentOrderTimer.vue'
+import PaymentOrderTransferList from './PaymentOrderTransferList.vue'
 
 Vue.use(VueMoment)
 
@@ -18,10 +20,11 @@ Vue.use(VueMoment)
 export default {
     name: 'PaymentOrderStatus',
     components: {
-        PaymentOrderTimer
+        PaymentOrderTimer,
+         PaymentOrderTransferList
     },
     computed: {
-        ...mapGetters(['paymentOrder']),
+        ...mapGetters(['paymentOrder', 'transfers']),
     },
 }
 </script>

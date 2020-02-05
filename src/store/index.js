@@ -3,8 +3,9 @@ import Hashes from 'jshashes'
 import Vue from 'vue'
 import Vuex from 'vuex'
 
+import Erc20 from '@/models/erc20'
+import Coingecko from '@/models/coingecko'
 
-import Erc20 from './erc20'
 import getters from './getters'
 
 Vue.use(Vuex)
@@ -34,16 +35,17 @@ export default new Vuex.Store({
         paymentConfirmedHandler: null,
         paymentCanceledHandler: null,
         contentCopiedHandler: null,
+        errorHandler: null,
 
         // values that do change during runtime
         store: null,
-        selectedTokenCode: null,
+        selectedTokenAddress: null,
         checkout: null,
         checkoutWebsocket: null,
         tokens: {},
         exchangeRates: {},
         blockchainTransferMap: {},
-        raidenTransferMap: {},
+        raidenTransferMap: {}
     },
     getters: getters,
     mutations: {
@@ -60,18 +62,24 @@ export default new Vuex.Store({
             state.paymentConfirmedHandler = setupData.onPaymentConfirmed
             state.paymentCanceledHandler = setupData.onPaymentCanceled
             state.contentCopiedHandler = setupData.onCopyToClipboard
+            state.onErrorHandler = setupData.onError
+            state.onNotificationHandler = setupData.onNotification
         },
         selectToken(state, token) {
-            state.selectedTokenCode = token
+            state.selectedTokenAddress = token.address
         },
         setStore(state, storeData) {
             state.store = storeData
         },
         setToken(state, tokenData) {
-            Vue.set(state.tokens, tokenData.code, tokenData)
+            Vue.set(state.tokens, tokenData.address, tokenData)
         },
-        setExchangeRate(state, exchangeRateData) {
-            Vue.set(state.exchangeRates, exchangeRateData.token, exchangeRateData)
+        setExchangeRate(state, payload) {
+            let {token, rate} = payload
+
+            if (token && token.address && rate) {
+                Vue.set(state.exchangeRates, token.address, rate)
+            }
         },
         setCheckout(state, checkoutData) {
             state.checkout = checkoutData
@@ -81,44 +89,56 @@ export default new Vuex.Store({
         },
         reset(state) {
             state.checkout = null
-            state.selectedTokenCode = null
+            state.checkoutWebsocket = null
+            state.selectedTokenAddress = null
+            state.blockchainTransferMap = {}
+            state.raidenTransferMap = {}
+            state.blockchainTransferMap = {}
+            state.raidenTransferMap = {}
         },
         registerBlockchainTransfer(state, transferData) {
             if (!transferData || !transferData.identifier) {
                 return
             }
+
             Vue.set(state.blockchainTransferMap, transferData.identifier, transferData)
         }
     },
     actions: {
-        async copyToClipboard({state}, containerElement) {
-            let content = containerElement.getAttribute('data-clipboard') || containerElement.textContent
-            navigator.clipboard.writeText(content.trim());
-
-            if (state.contentCopiedHandler) {
-                state.contentCopiedHander(containerElement)
-            }
-        },
-        async displayErrorMessage(_, message) {
-            alert(message)
-        },
         async getStore({commit, state}) {
             let storeUrl = `${state.apiRootUrl}/api/stores/${state.storeId}`
             let response = await fetch(storeUrl)
             let storeData = await response.json()
             commit('setStore', storeData)
         },
-        async getToken({commit, state}, token) {
-            let url = `${state.apiRootUrl}/api/tokens/token/${token}`
-            let response = await fetch(url)
-            let tokenData = await response.json()
-            commit('setToken', tokenData)
+        async fetchAllTokenData({commit, state, dispatch}) {
+            let tokenAddresses = state.store.accepted_currencies
+            tokenAddresses.forEach(async function(address) {
+                let token = await dispatch('fetchToken', address)
+                commit('setToken', token)
+
+                let rate = await dispatch('fetchExchangeRate', token)
+                commit('setExchangeRate', {token, rate})
+            })
         },
-        async getExchangeRate({commit, state}, token) {
-            let url = `${state.apiRootUrl}/api/tokens/rates/${token}/${state.pricingCurrency}`
-            let response = await fetch(url);
-            let rate = await response.json()
-            commit('setExchangeRate', rate)
+        async fetchToken({state}, tokenAddress) {
+            let url = `${state.apiRootUrl}/api/tokens/token/${tokenAddress}`
+            let response = await fetch(url)
+            return await response.json()
+        },
+        async fetchExchangeRate({state, dispatch}, token) {
+            try {
+                if (Erc20.isErc20Token(token)) {
+                    return await Coingecko.getTokenRate(token, state.pricingCurrency)
+                }
+                else {
+                    return await Coingecko.getEthereumRate(state.pricingCurrency)
+                }
+            }
+            catch (error) {
+                let message = `Failed to get exchange rate for ${token.code}`
+                dispatch('handleError', {error, message})
+            }
         },
         async reset({commit, state}) {
             if (state && state.checkout && state.checkout.url) {
@@ -130,15 +150,14 @@ export default new Vuex.Store({
             commit('reset')
 
         },
-        async makeCheckout({commit, state, getters, dispatch}) {
-            let token = getters.getToken(state.selectedTokenCode)
-            let tokenAmountDue = getters.convertToTokenAmount(state.amountDue, state.selectedTokenCode)
+        async makeCheckout({commit, state, getters, dispatch}, token) {
+            let tokenAmountDue = getters.convertToTokenAmount(state.amountDue, token)
 
             let checkoutUrl = `${state.apiRootUrl}/api/checkout`
             let checkoutData = await postJSON(checkoutUrl, {
                 store: state.storeId,
                 amount: String(Decimal(tokenAmountDue).toDecimalPlaces(token.decimals)),
-                currency: state.selectedTokenCode,
+                token: token.address,
                 external_identifier: state.identifier
             })
 
@@ -163,22 +182,22 @@ export default new Vuex.Store({
                 commit('setCheckout', checkoutData)
             }
         },
-        async makeWeb3Transfer({commit, getters, state, dispatch}) {
+        async makeWeb3Transfer({getters, state, dispatch}) {
             let paymentMethod = getters.paymentRouting
             let tokenAmountDue = getters.tokenAmountDue
 
             if (!tokenAmountDue) {
-                dispatch('displayErrorMessage', 'Can not determine transfer amount')
+                dispatch('handleError', {message: 'Can not determine transfer amount'})
                 return
             }
 
             if (!paymentMethod || !paymentMethod.blockchain){
-                dispatch('displayErrorMessage', 'Transfer via blockchain not possible at the moment')
+                dispatch('handleError', {message: 'Transfer via blockchain not possible at the moment'})
                 return
             }
 
             if (!window.ethereum || !window.web3) {
-                dispatch('displayErrorMessage', 'No Web3 Browser available')
+                dispatch('handleError', {message: 'No Web3 Browser available'})
                 return
             }
 
@@ -188,21 +207,21 @@ export default new Vuex.Store({
                 try {
                     await window.ethereum.enable();
                 } catch (error) {
-                    dispatch('displayErrorMessage', 'Failed to connect to Web3 Wallet')
+                    dispatch('handleError', {message: 'Failed to connect to Web3 Wallet'})
                     return
                 }
             }
 
-            let token = getters.getToken(state.selectedTokenCode)
+            let token = getters.getToken(state.selectedTokenAddress)
             let current_network_id = w3.version.network
 
             if (current_network_id != token.network_id) {
                 let message = `Web3 Browser connected to network ${current_network_id}, please change to ${token.network_id}.`
-                dispatch('displayErrorMessage', message);
+                dispatch('handleError', {message: message});
                 return
             }
 
-            let tokenWeiDue = getters.getTokenAmountWei(tokenAmountDue, state.selectedTokenCode)
+            let tokenWeiDue = getters.getTokenAmountWei(tokenAmountDue, state.selectedTokenAddress)
             let sender = (window.ethereum && window.ethereum.selectedAddress) || w3.eth.defaultAccount
             let recipient = paymentMethod.blockchain
 
@@ -222,24 +241,31 @@ export default new Vuex.Store({
 
             w3.eth.sendTransaction(transactionData, function(error, tx) {
                 if (tx) {
-                    commit('registerBlockchainTransfer', {
-                        identifier: tx,
-                        token: state.selectedTokenCode,
-                        status: 'sent'
-                    })
+                    dispatch('handleNotification', `Transaction ${tx} was created and sent`)
                 }
                 if (error) {
-                    dispatch('notifyTransactionError', error)
+                    let message = 'Failed to send transaction'
+                    dispatch('handleError', {error, message})
                 }
             })
         },
-        async notifyTransactionError(_, transactionError) {
-            console.error(transactionError)
-        },
-        async pollExchangeRates({dispatch, getters}) {
-            getters.acceptedTokens.forEach(async function(token){
-                await dispatch('getExchangeRate', token)
+        async pollExchangeRates({commit, dispatch, getters}) {
+            getters.allTokens.forEach(async function(token){
+                let rate = await dispatch('fetchExchangeRate', token)
+                commit('setExchangeRate', {token, rate})
             });
+        },
+        async handleError({state}, {error, message}) {
+            let handler = state.onErrorHandler
+            if (handler) {
+                handler(error, message)
+            }
+        },
+        async handleNotification({state}, message) {
+            let handler = state.onNotificationHandler
+            if (handler) {
+                handler(message)
+            }
         },
         handleCheckoutMessage({dispatch}, message) {
             let {event} = message
@@ -257,28 +283,27 @@ export default new Vuex.Store({
                 break
             }
         },
-        handlePaymentSent({commit, state}, eventMessage){
+        handlePaymentSent({commit, getters, state}, eventMessage){
             let {voucher, token, amount, identifier} = eventMessage
-
-            let handler = state.paymentSentHandler
 
             commit('registerBlockchainTransfer', {
                 identifier: identifier,
-                token: token,
+                token: getters.getToken(token),
                 amount: Decimal(amount),
                 status: 'pending'
             })
 
+            let handler = state.paymentSentHandler
             if (handler) {
                 handler(voucher)
             }
         },
-        handlePaymentReceived({commit, state}, eventMessage){
+        handlePaymentReceived({commit, getters, state}, eventMessage){
             let {voucher, token, amount, identifier} = eventMessage
 
             commit('registerBlockchainTransfer', {
                 identifier: identifier,
-                token: token,
+                token: getters.getToken(token),
                 amount: Decimal(amount),
                 status: 'received'
             })
@@ -288,12 +313,12 @@ export default new Vuex.Store({
                 handler(voucher)
             }
         },
-        handlePaymentConfirmed({commit, state, dispatch}, eventMessage){
+        handlePaymentConfirmed({commit, state, getters, dispatch}, eventMessage){
             let {voucher, token, amount, identifier, payment_method} = eventMessage
 
             let transferData = {
                 identifier: identifier,
-                token: token,
+                token: getters.getToken(token),
                 amount: Decimal(amount),
                 status: 'confirmed'
             }
@@ -306,7 +331,7 @@ export default new Vuex.Store({
                 commit('registerRaidenTransfer', transferData)
                 break
             default:
-                dispatch('displayErrorMessage', `Did not expect to receive ${payment_method} payment`)
+                dispatch('handleError', {message: `Did not expect to receive ${payment_method} payment`})
             }
 
             let handler = state.paymentConfirmedHandler

@@ -6,10 +6,7 @@ l<template>
     :src='token.logo || "https://assets.coingecko.com/coins/images/279/large/ethereum.png"'
     :alt='token.name'
   />
-  <TokenExchangeRate
-    v-if='token'
-    :token='token'
-  />
+  <TokenExchangeRate v-if="token" :token='token' />
 
   <Spinner v-if='!token' :message='spinnerMessage' />
 </li>
@@ -27,26 +24,19 @@ export default {
         TokenExchangeRate, Spinner
     },
     props: {
-        tokenCode: String,
+        token: Object,
     },
     computed: {
         spinnerMessage: function() {
-            return `Fetching ${this.tokenCode}/${this.pricingCurrency} exchange rate`
-        },
-        token() {
-            return this.$store.getters.getToken(this.tokenCode)
+            return `Fetching token information...`
         },
         ...mapState(['apiRootUrl', 'pricingCurrency'])
     },
     methods: {
         selectToken: function() {
-            this.$store.commit('selectToken', this.tokenCode)
-            this.$store.dispatch('makeCheckout')
+            this.$store.commit('selectToken', this.token)
+            this.$store.dispatch('makeCheckout', this.token)
         }
-    },
-    async mounted() {
-        this.$store.dispatch('getToken', this.tokenCode)
-        this.$store.dispatch('getExchangeRate', this.tokenCode)
     }
 }
 </script>

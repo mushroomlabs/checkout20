@@ -2,11 +2,11 @@
   <div>
     <p>{{ store.name }} accepts payment in the following currencies</p>
     <p>Amount to Pay: {{ amountFormatted }}</p>
-    <ul class="token-selector">
+    <ul class='token-selector'>
       <TokenSelectorItem
-        v-for="token_code in acceptedTokens"
-        :key="token_code"
-        :tokenCode="token_code"
+        v-for='token in allTokens'
+        :key='token.code'
+        :token='token'
         />
     </ul>
   </div>
@@ -14,7 +14,7 @@
 
 
 <script>
-import {mapState} from 'vuex'
+import {mapState, mapGetters} from 'vuex'
 
 import TokenSelectorItem from './TokenSelectorItem.vue'
 
@@ -25,17 +25,14 @@ export default {
     },
     computed: {
         amountFormatted() {
-            let currency = this.$store.state.pricingCurrency;
-            let formatter = new Intl.NumberFormat([], {style: "currency", currency: currency});
-            return formatter.format(this.amountDue);
+            let formatter = new Intl.NumberFormat([], {style: 'currency', currency: this.pricingCurrency})
+            return formatter.format(this.amountDue)
         },
-        currency() {
-            return this.$store.state.pricingCurrency
-        },
-        acceptedTokens() {
-            return this.$store.state.store.accepted_currencies
-        },
-        ...mapState(['store', 'amountDue'])
+        ...mapGetters(['allTokens']),
+        ...mapState(['pricingCurrency', 'store', 'amountDue'])
+    },
+    async mounted() {
+        this.$store.dispatch('fetchAllTokenData')
     }
 }
 </script>

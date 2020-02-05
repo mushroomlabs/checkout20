@@ -1,10 +1,9 @@
 <template>
   <div id='hub20-checkout'>
     <Spinner v-if='!store' message='Connecting to store...' />
-    <Spinner v-if='store && selectedTokenCode && !paymentOrder' message='Creating Payment Order...' />
+    <Spinner v-if='store && selectedToken && !paymentOrder' message='Creating Payment Order...' />
     <TokenSelector v-if='store && !paymentOrder'/>
-    <PaymentOrder v-if='store && paymentOrder && !isPaid && !hasPendingTransfers'/>
-    <PaymentTracker v-if='store && paymentOrder'/>
+    <PaymentOrder v-if='store && paymentOrder && !isFinalized'/>
   </div>
 </template>
 
@@ -13,14 +12,16 @@ import {mapState, mapGetters} from 'vuex'
 
 import TokenSelector from '@/components/TokenSelector.vue'
 import PaymentOrder from '@/components/PaymentOrder.vue'
-import PaymentTracker from '@/components/PaymentTracker.vue'
 import Spinner from '@/components/Spinner.vue'
 
 
 export default {
     name: 'checkout',
     components: {
-        TokenSelector, PaymentOrder, PaymentTracker, Spinner
+        TokenSelector, PaymentOrder, Spinner
+    },
+    props: {
+        settings: Object
     },
     data() {
         return {
@@ -28,14 +29,15 @@ export default {
         }
     },
     computed: {
-        ...mapGetters(['paymentOrder', 'hasPendingTransfers', 'isPaid']),
-        ...mapState(['store', 'selectedTokenCode'])
+        ...mapGetters(['paymentOrder', 'isFinalized']),
+        ...mapState(['store', 'selectedToken'])
     },
-    async mounted() {
+    created() {
+        this.$store.commit('setup', this.$props.settings)
         this.$store.dispatch('getStore')
         this.exchangeRatePolling = setInterval(() => {
             this.$store.dispatch('pollExchangeRates')
-        }, 15000)
+        }, 30000)
     }
 }
 </script>

@@ -1,4 +1,7 @@
 export default {
+    isErc20Token: (token) => {
+        return token.address != '0x0000000000000000000000000000000000000000'
+    },
     EIP20_ABI :[
         {
             "constant": true,
