@@ -1,4 +1,5 @@
 import Decimal from 'decimal.js-light'
+import Coingecko from '@/models/coingecko'
 
 export default {
     acceptedTokens: (state, getters) => {
@@ -118,6 +119,9 @@ export default {
     },
     getToken: (state) => (tokenAddress) => {
         return state.tokens[tokenAddress]
+    },
+    getTokenLogo: (state) => (token) => {
+        return state.tokenLogos[token.address]
     },
     allTokens: (state) => {
         let tokens = Object.values(state.tokens)

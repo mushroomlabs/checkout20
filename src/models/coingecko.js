@@ -27,6 +27,22 @@ async function getRateByTokenAddress(tokenAddress, currencyCode) {
 
 }
 
+async function getTokenLogoUrlByAddress(tokenAddress) {
+    let url = `${BASE_URL}/coins/ethereum/contract/${tokenAddress}`
+    let data = await makeRequest(url)
+    return data && data.image && data.image.large
+}
+
+async function getTokenLogo(token) {
+    let address = Ethereum.tokenAddresses[token.code]
+    if (address) {
+        return await getTokenLogoUrlByAddress(address)
+    }
+
+    return 'https://assets.coingecko.com/coins/images/279/large/ethereum.png'
+}
+
+
 async function getTokenRate(token, currencyCode) {
 
     if (token.network_id == Ethereum.networkIds.mainnet) {
@@ -43,4 +59,4 @@ async function getTokenRate(token, currencyCode) {
     }    
 }
 
-export default { getEthereumRate, getTokenRate }
+export default { getEthereumRate, getTokenRate, getTokenLogo }

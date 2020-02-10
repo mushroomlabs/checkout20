@@ -44,6 +44,7 @@ export default new Vuex.Store({
         checkoutWebsocket: null,
         tokens: {},
         exchangeRates: {},
+        tokenLogos: {},
         blockchainTransferMap: {},
         raidenTransferMap: {}
     },
@@ -73,6 +74,9 @@ export default new Vuex.Store({
         },
         setToken(state, tokenData) {
             Vue.set(state.tokens, tokenData.address, tokenData)
+        },
+        setTokenLogo(state, {token, url}) {
+            Vue.set(state.tokenLogos, token.address, url)
         },
         setExchangeRate(state, payload) {
             let {token, rate} = payload
@@ -125,6 +129,9 @@ export default new Vuex.Store({
             let url = `${state.apiRootUrl}/api/tokens/token/${tokenAddress}`
             let response = await fetch(url)
             return await response.json()
+        },
+        async fetchTokenLogo(_, token) {
+            return await Coingecko.getTokenLogo(token)
         },
         async fetchExchangeRate({state, dispatch}, token) {
             try {

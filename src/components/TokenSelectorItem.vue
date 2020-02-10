@@ -3,18 +3,19 @@ l<template>
   <span v-if='token' class='token-name'>{{ token.name }}</span>
   <img
     v-if='token'
-    :src='token.logo || "https://assets.coingecko.com/coins/images/279/large/ethereum.png"'
+    :src='getTokenLogo(token)'
     :alt='token.name'
   />
   <TokenExchangeRate v-if="token" :token='token' />
 
-  <Spinner v-if='!token' :message='spinnerMessage' />
+  <Spinner v-if='!token' message='Fetching token information...' />
 </li>
 </template>
 
 
 <script>
-import {mapState} from 'vuex'
+import {mapState, mapGetters} from 'vuex'
+
 import TokenExchangeRate from './TokenExchangeRate.vue'
 import Spinner from './Spinner.vue'
 
@@ -27,9 +28,7 @@ export default {
         token: Object,
     },
     computed: {
-        spinnerMessage: function() {
-            return `Fetching token information...`
-        },
+        ...mapGetters(['getTokenLogo']),
         ...mapState(['apiRootUrl', 'pricingCurrency'])
     },
     methods: {
@@ -37,6 +36,10 @@ export default {
             this.$store.commit('selectToken', this.token)
             this.$store.dispatch('makeCheckout', this.token)
         }
+    },
+    async mounted() {
+        let token_logo_url = await this.$store.dispatch('fetchTokenLogo', this.token)
+        this.$store.commit('setTokenLogo', {token: this.token, url: token_logo_url})
     }
 }
 </script>
