@@ -1,15 +1,16 @@
 <template>
-  <div>
-    <p>{{ store.name }} accepts payment in the following currencies</p>
-    <p>Amount to Pay: {{ amountFormatted }}</p>
-    <ul class='token-selector'>
-      <TokenSelectorItem
-        v-for='token in allTokens'
-        :key='token.code'
-        :token='token'
-        />
-    </ul>
-  </div>
+<div class='token-selector'>
+  <h6 class='token-selector-payment-info'>
+    Select one of the following tokens to initiate a transfer equivalent to {{ amountFormatted }}
+  </h6>
+  <ul class='token-selector-options'>
+    <TokenSelectorItem
+      v-for='token in allTokens'
+      :key='token.code'
+      :token='token'
+      />
+  </ul>
+</div>
 </template>
 
 

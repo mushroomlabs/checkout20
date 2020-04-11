@@ -1,11 +1,17 @@
 <template>
-<ul class='payment-order-transfers'>
-  <PaymentOrderTransferListItem
-    v-for='transfer in transfers'
-    :transfer='transfer'
-    :key='transfer.identifier'
-  />
-</ul>
+<div class='payment-order-transfers' v-if='transfers.length > 0'>
+  <h3>Transfers</h3>
+  <span class='info'>
+    <slot></slot>
+  </span>
+  <ul>
+    <PaymentOrderTransferListItem
+      v-for='transfer in transfers'
+      :transfer='transfer'
+      :key='transfer.identifier'
+      />
+  </ul>
+</div>
 </template>
 
 

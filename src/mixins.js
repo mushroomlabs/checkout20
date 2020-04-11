@@ -12,18 +12,22 @@ export default {
         },
         methods: {
             copyToClipboard: function() {
+                if (!navigator.clipboard) {
+                    return
+                }
+
                 let valueType = typeof(this.valueToCopy)
                 let value
 
                 switch (valueType) {
                 case "number":
-                case "object":                    
+                case "object":
                     value = String(this.valueToCopy)
                     break
                 default:
                     value = this.valueToCopy
                 }
-                
+
                 if (value) {
                     navigator.clipboard.writeText(value);
                 }

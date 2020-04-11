@@ -23,6 +23,14 @@ function checkout(selector, settings) {
     container.appendChild(this._checkout.$el)
 
     CURRENT_CHECKOUT = this._checkout
+
+    this.reset = function() {
+        this._checkout.$store.dispatch('reset')
+    }
+
+    this.isFinalized = function() {
+        this._checkout.$store.getters.isFinalized()
+    }
 }
 
 

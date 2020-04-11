@@ -7,7 +7,7 @@
   <PaymentOrderDetails/>
   <PaymentOrderRouting/>
   <PaymentOrderStatus/>
-  <PaymentOrderActionPanel/>
+  <PaymentOrderActionPanel v-if='showActionPanel'/>
 </div>
 </template>
 
@@ -27,6 +27,12 @@ import PaymentOrderStatus from './PaymentOrderStatus.vue'
          PaymentOrderDetails,
          PaymentOrderRouting,
          PaymentOrderStatus
+     },
+     props: {
+         showActionPanel: {
+             type: Boolean,
+             default: false
+         }
      },
      computed:{
          ...mapGetters(['paymentOrder']),

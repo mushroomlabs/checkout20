@@ -44,7 +44,6 @@ export default {
             let time_info = this.$store.getters.paymentOrderTimerStatus(this.now)
             return time_info && time_info.timeRemainingPercentage || 100
         },
-
         timeRemainingStatus: function() {
             let percentage = this.timeRemainingPercentage
             if (percentage >= 25) {
@@ -60,6 +59,7 @@ export default {
     },
     async mounted() {
         let self = this
+        this.now = new Date()
         setInterval(() => {
             self.now = new Date()
             self.$forceUpdate()

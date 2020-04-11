@@ -1,16 +1,20 @@
 <template>
 <div class='checkout-receipt'>
-  <span class='payment-status'>{{ paymentOrder.status }}</span>
+  <slot>Payment Completed!</slot>
 </div>
 </template>
 
 <script>
-import {mapGetters} from 'vuex'
+import {mapGetters, mapActions} from 'vuex'
 
 export default {
-    name: 'PaymentTracker',
+    name: 'CheckoutReceipt',
     computed: {
-        ...mapGetters(['paymentOrder'])
+        ...mapGetters(['paymentOrder']),
+        ...mapActions(['handleCheckoutFinished'])
+    },
+    mounted() {
+        this.handleCheckoutFinished()
     }
 }
 </script>

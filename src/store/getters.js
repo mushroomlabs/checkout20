@@ -1,5 +1,4 @@
 import Decimal from 'decimal.js-light'
-import Coingecko from '@/models/coingecko'
 
 export default {
     acceptedTokens: (state, getters) => {
@@ -18,7 +17,11 @@ export default {
             identifier: checkout.external_identifier,
             status: checkout.status,
             createdTime: checkout && new Date(checkout.created),
-            expirationTime: paymentMethod && new Date(paymentMethod.expiration_time)
+            expirationTime: paymentMethod && new Date(paymentMethod.expiration_time),
+            isConfirmed: checkout.status === "confirmed",
+            isPaid: ["received", "confirmed"].includes(checkout.status),
+            isExpired: checkout.status == "expired",
+            isPending: ["requested", "partial"].includes(checkout.status)
         }
     },
     paymentOrderTimerStatus: (state) => (date) => {
@@ -163,6 +166,6 @@ export default {
         let url = new URL(state.apiRootUrl)
         let ws_protocol = url.protocol == 'http:' ? 'ws:': 'wss:'
         url.protocol = ws_protocol
-        return url.origin
+        return `${url.origin}/ws`
     }
 }

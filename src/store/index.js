@@ -30,6 +30,10 @@ export default new Vuex.Store({
         identifier: null,
         pricingCurrency: null,
         amountDue: null,
+        checkoutCreatedHandler: null,
+        checkoutFinishedHandler: null,
+        checkoutCanceledHandler: null,
+        checkoutExpiredHandler: null,
         paymentSentHandler: null,
         paymentReceivedHandler: null,
         paymentConfirmedHandler: null,
@@ -58,10 +62,17 @@ export default new Vuex.Store({
             state.pricingCurrency = String(setupData.currency).toUpperCase(),
             state.identifier = setupData.identifier || new Hashes.MD5().hex(timestamp)
             state.amountDue = setupData.amount
+
+            state.checkoutCreatedHandler = setupData.onCheckoutCreated
+            state.checkoutCanceledHandler = setupData.onCheckoutCanceled
+            state.checkoutExpiredHandler = setupData.onCheckoutExpired
+            state.checkoutFinishedHandler = setupData.onCheckoutFinished
+
             state.paymentSentHandler = setupData.onPaymentSent
             state.paymentReceivedHandler = setupData.onPaymentReceived
             state.paymentConfirmedHandler = setupData.onPaymentConfirmed
             state.paymentCanceledHandler = setupData.onPaymentCanceled
+
             state.contentCopiedHandler = setupData.onCopyToClipboard
             state.onErrorHandler = setupData.onError
             state.onNotificationHandler = setupData.onNotification
@@ -178,6 +189,7 @@ export default new Vuex.Store({
             }
             commit('setCheckout', checkoutData)
             commit('setCheckoutWebSocket', checkoutWebSocket)
+            dispatch('handleCheckoutCreated')
         },
         async updateCheckout({commit, state}) {
             let checkoutId = state.checkout && state.checkout.id
@@ -288,6 +300,30 @@ export default new Vuex.Store({
             case 'payment.confirmed':
                 dispatch('handlePaymentConfirmed', message)
                 break
+            }
+        },
+        handleCheckoutCreated({state}) {
+            let handler = state.checkoutCreatedHandler
+            if (handler) {
+                handler(state.checkout)
+            }
+        },
+        handleCheckoutCanceled({state}) {
+            let handler = state.checkoutCanceledHandler
+            if (handler) {
+                handler(state.checkout)
+            }
+        },
+        handleCheckoutExpired({state}) {
+            let handler = state.checkoutExpiredHandler
+            if (handler) {
+                handler(state.checkout)
+            }
+        },
+        handleCheckoutFinished({state}) {
+            let handler = state.checkoutFinishedHandler
+            if (handler) {
+                handler(state.checkout)
             }
         },
         handlePaymentSent({commit, getters, state}, eventMessage){

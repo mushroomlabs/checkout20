@@ -1,7 +1,9 @@
 <template>
   <div class='payment-order-status'>
     <PaymentOrderTimer/>
-    <PaymentOrderTransferList v-if='transfers'/>
+    <PaymentOrderTransferList v-if='transfers'>
+      The following transfers were accepted but are not sufficient to pay the total due
+    </PaymentOrderTransferList>
   </div>
 </template>
 
@@ -21,7 +23,7 @@ export default {
     name: 'PaymentOrderStatus',
     components: {
         PaymentOrderTimer,
-         PaymentOrderTransferList
+        PaymentOrderTransferList
     },
     computed: {
         ...mapGetters(['paymentOrder', 'transfers']),

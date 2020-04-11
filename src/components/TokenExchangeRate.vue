@@ -1,6 +1,6 @@
 <template>
 <div v-if='token' class='token-exchange-rate'>
-  <div class='rate'>Current Price: {{ exchangeRateFormatted }}</div>
+  <div class='rate'>Current rate: {{ exchangeRateFormatted }}</div>
   <div class='due'>Total to Pay:
     <TokenAmountDisplay
       :token='token'
