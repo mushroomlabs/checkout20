@@ -105,7 +105,13 @@ async function getEthereumRate(currencyCode) {
 async function getRateByTokenAddress(tokenAddress, currencyCode) {
     let url = `${BASE_URL}/simple/token_price/ethereum?contract_addresses=${tokenAddress}&vs_currencies=${currencyCode}`
     let data = await makeRequest(url)
-    return Decimal(data[tokenAddress][currencyCode.toLowerCase()])
+
+    // Attention: data will be keyed by token address (checksumed),
+    // tokenAddress is not checksum. This is fine because the Object
+    // will have only one item, so we can go straight to about the
+    // object values
+    let quotes = Object.values(data)
+    return Decimal(quotes[0][currencyCode.toLowerCase()])
 
 }
 
